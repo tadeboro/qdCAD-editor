@@ -60,14 +60,6 @@ class Cell(object):
                    Cell.Type(type), Cell.Clock(clock), Cell.Value(value))
 
 
-def _to_cell_coords(x, y):
-    return int(x // GRID_UNIT), int(y // GRID_UNIT)
-
-
-def _from_cell_coords(x, y):
-    return x * GRID_UNIT, y * GRID_UNIT
-
-
 class Point(object):
 
     def __init__(self, x, y):
@@ -90,13 +82,16 @@ class App(object):
         self.area = builder.get_object("draw-area")
 
         # Offset tracking
-        self.offset = Point(0, 0)
+        self.offset = Point(HALF_GRID_UNIT, HALF_GRID_UNIT)
+        self.offset_old = Point(0, 0)
         self.drag_start = Point(0, 0)
+        self.drag_occured = False
 
         # Cells
         self.cells = dict()
 
         # GUI state
+        self.layer = 0
         self.active_type = Cell.Type.internal
         self.active_clock = Cell.Clock.switch
         self.active_value = Cell.Value.n
@@ -113,6 +108,16 @@ class App(object):
         Gtk.main()
 
     # Helpers
+    def _to_cell_coords(self, x, y):
+        return (int((x - self.offset.x + HALF_GRID_UNIT) // GRID_UNIT),
+                int((y - self.offset.y + HALF_GRID_UNIT) // GRID_UNIT))
+
+    def _from_cell_coords(self, x, y):
+        """
+        Return center of cell in widget coordinates.
+        """
+        return x * GRID_UNIT + self.offset.x, y * GRID_UNIT + self.offset.y
+
     def _save_qdstruct(self, filename):
         with open(filename, "w") as f:
             f.write("{}\n".format(len(self.cells)))
@@ -149,7 +154,7 @@ class App(object):
         self.cells = {}
         for _ in range(no_cells):
             cell = Cell.from_string(lines.pop(0))
-            self.cells[(cell.x, cell.y)] = cell
+            self.cells[(cell.x, cell.y, cell.z)] = cell
         names = ("no-cycles", "no-evals", "eps",
                  "max-steps", "influence-radius")
         for name in names:
@@ -180,7 +185,10 @@ class App(object):
         cr.set_source_rgb(1, 1, 1)
         cr.paint()
         cr.translate(-x_min * GRID_UNIT, -y_min * GRID_UNIT)
-        self._draw_cells(cr)
+        backup_offset = self.offset
+        self.offset = Point(HALF_GRID_UNIT, HALF_GRID_UNIT)
+        self._draw_cells(cr, self.layer)
+        self.offset = backup_offset
 
 
     # Callbacks
@@ -201,6 +209,8 @@ class App(object):
 
         if dialog.run() == Gtk.ResponseType.OK:
             filename = dialog.get_filename()
+            if not filename.endswith(".qdStruct"):
+                filename += ".qdStruct"
             self._save_qdstruct(filename)
         dialog.destroy()
 
@@ -233,42 +243,53 @@ class App(object):
 
         if dialog.run() == Gtk.ResponseType.OK:
             filename = dialog.get_filename()
+            if not filename.endswith(".qdStruct"):
+                filename += ".pdf"
             self._save_pdf(filename)
         dialog.destroy()
 
     def on_draw(self, _, cr):
         _, clip = Gdk.cairo_get_clip_rectangle(cr)
 
-        cr.translate(self.offset.x, self.offset.y)
-        clip.x -= self.offset.x
-        clip.y -= self.offset.y
-
         self._draw_grid(cr, clip)
-        self._draw_cells(cr)
+        self._draw_cells(cr, self.layer)
         return True
 
     def on_button_press(self, _, event):
-        if event.button != 3:
-            return False
+        if event.button == 1:
+            self.drag_start = Point(event.x, event.y)
+            self.offset_old = self.offset
 
-        self.drag_start = Point(event.x, event.y)
-        return True
+        return False
 
     def on_button_release(self, widget, event):
-        x, y = _to_cell_coords(event.x, event.y)
+        x, y = self._to_cell_coords(event.x, event.y)
+        z = self.layer
 
-        if event.button == 3 and (x, y) in self.cells:
-            del self.cells[(x, y)]
+        if event.button == 3 and (x, y, z) in self.cells:
+            del self.cells[(x, y, z)]
             widget.queue_draw()
             return True
 
         if event.button == 1:
-            self.cells[(x, y)] = Cell(x, y, 0, self.active_type,
-                                      self.active_clock, self.active_value)
-            widget.queue_draw()
+            if not self.drag_occured:
+                self.cells[(x, y, z)] = Cell(x, y, z, self.active_type,
+                                             self.active_clock,
+                                             self.active_value)
+                widget.queue_draw()
+            self.drag_occured = False
             return True
 
         return False
+
+    def on_motion(self, widget, event):
+        self.drag_occured = True
+        self.offset = Point(
+            int(event.x - self.drag_start.x + self.offset_old.x),
+            int(event.y - self.drag_start.y + self.offset_old.y)
+        )
+        widget.queue_draw()
+        return True
 
     # Type changers
     def on_electrode(self, widget):
@@ -315,6 +336,10 @@ class App(object):
     def on_value_d(self, widget):
         self._change_value(widget, Cell.Value.d)
 
+    def on_switch_layer(self, adjustment):
+        self.layer = int(adjustment.get_value())
+        self.area.queue_draw()
+
     # Helpers
     def _change_type(self, widget, type):
         if widget.get_active():
@@ -332,10 +357,12 @@ class App(object):
         cr.set_source_rgb(0.9333, 0.9333, 0.9255)
         cr.paint()
 
-        x_min = math.ceil(clip.x / GRID_UNIT)
-        x_max = clip.x + clip.width
+        x_min = (clip.x // GRID_UNIT * GRID_UNIT +
+                 self.offset.x % GRID_UNIT - HALF_GRID_UNIT)
+        x_max = clip.x + clip.width + GRID_UNIT
 
-        y_min = math.ceil(clip.y / GRID_UNIT)
+        y_min = (clip.y // GRID_UNIT * GRID_UNIT +
+                 self.offset.y % GRID_UNIT - HALF_GRID_UNIT)
         y_max = clip.y + clip.height
 
         cr.set_source_rgb(1, 1, 1)
@@ -348,9 +375,11 @@ class App(object):
             cr.line_to(x_max, y)
         cr.stroke()
 
-    def _draw_cells(self, cr):
-        for cell in self.cells.values():
-            self._draw_cell(cr, cell)
+    def _draw_cells(self, cr, layer):
+        # TODO: Layers need to be handled here
+        for (x, y, z), cell in self.cells.items():
+            if z == layer:
+                self._draw_cell(cr, cell)
 
     def _draw_cell(self, cr, cell):
         value_lut = {
@@ -373,10 +402,10 @@ class App(object):
             Cell.Type.output:    (0.4588, 0.3137, 0.4824),
         }
 
-        x, y = _from_cell_coords(cell.x, cell.y)
+        x, y = self._from_cell_coords(cell.x, cell.y)
 
         cr.save()
-        cr.translate(x + HALF_GRID_UNIT, y + HALF_GRID_UNIT)
+        cr.translate(x, y)
 
         cr.set_line_width(6)
         cr.rectangle(5 - HALF_GRID_UNIT, 5 - HALF_GRID_UNIT,
@@ -386,7 +415,16 @@ class App(object):
         cr.set_source_rgb(*type_lut[cell.type])
         cr.stroke()
 
+        if cell.type == Cell.Type.electrode:
+            cr.move_to(5 - HALF_GRID_UNIT, HALF_GRID_UNIT - 5)
+            cr.select_font_face("cairo:monospace", cairo.FONT_SLANT_NORMAL,
+                                cairo.FONT_WEIGHT_BOLD)
+            cr.set_font_size(20)
+            cr.set_source_rgb(1, 1, 1)
+            cr.show_text("{}".format(cell.id))
+
         cr.set_source_rgb(0, 0, 0)
+        cr.new_sub_path()
         if cell.value == Cell.Value.n:
             cr.arc(0, 0, 3, 0, 2 * math.pi)
         else:
@@ -396,16 +434,6 @@ class App(object):
         cr.fill()
 
         cr.restore()
-
-        if cell.type == Cell.Type.electrode:
-            cr.save()
-            cr.translate(x + 5, y + GRID_UNIT - 5)
-            cr.select_font_face("cairo:monospace", cairo.FONT_SLANT_NORMAL,
-                                cairo.FONT_WEIGHT_BOLD)
-            cr.set_font_size(20)
-            cr.set_source_rgb(1, 1, 1)
-            cr.show_text("{}".format(cell.id))
-            cr.restore()
 
 
 if __name__ == "__main__":
