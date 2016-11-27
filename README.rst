@@ -1,2 +1,4 @@
-# qdCAD-editor
+qdCAD editor
+============
+
 Simple Editor for qdStruct files
