@@ -170,9 +170,9 @@ class App(object):
         if len(self.cells) == 0:
             return
 
-        x_min, y_min = next(iter(self.cells.keys()))
+        x_min, y_min, _ = next(iter(self.cells.keys()))
         x_max, y_max = x_min, y_min
-        for x, y in self.cells.keys():
+        for x, y, _ in self.cells.keys():
             x_min = x_min if x_min < x else x
             x_max = x_max if x_max > x else x
             y_min = y_min if y_min < y else y
@@ -243,7 +243,7 @@ class App(object):
 
         if dialog.run() == Gtk.ResponseType.OK:
             filename = dialog.get_filename()
-            if not filename.endswith(".qdStruct"):
+            if not filename.endswith(".pdf"):
                 filename += ".pdf"
             self._save_pdf(filename)
         dialog.destroy()
