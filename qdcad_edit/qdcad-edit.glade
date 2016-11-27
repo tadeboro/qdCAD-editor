@@ -234,14 +234,14 @@
                         </child>
                         <child>
                           <object class="GtkRadioButton">
-                            <property name="label" translatable="yes">hold</property>
+                            <property name="label" translatable="yes">relax</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
                             <property name="active">True</property>
                             <property name="draw_indicator">True</property>
                             <property name="group">radiobutton2</property>
-                            <signal name="toggled" handler="on_hold" swapped="no"/>
+                            <signal name="toggled" handler="on_relax" swapped="no"/>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -268,36 +268,19 @@
                         </child>
                         <child>
                           <object class="GtkRadioButton">
-                            <property name="label" translatable="yes">relax</property>
+                            <property name="label" translatable="yes">hold</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
                             <property name="active">True</property>
                             <property name="draw_indicator">True</property>
                             <property name="group">radiobutton2</property>
-                            <signal name="toggled" handler="on_relax" swapped="no"/>
+                            <signal name="toggled" handler="on_hold" swapped="no"/>
                           </object>
                           <packing>
                             <property name="expand">True</property>
                             <property name="fill">True</property>
                             <property name="position">3</property>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkRadioButton">
-                            <property name="label" translatable="yes">undefined</property>
-                            <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="active">True</property>
-                            <property name="draw_indicator">True</property>
-                            <property name="group">radiobutton2</property>
-                            <signal name="toggled" handler="on_undefined" swapped="no"/>
-                          </object>
-                          <packing>
-                            <property name="expand">True</property>
-                            <property name="fill">True</property>
-                            <property name="position">4</property>
                           </packing>
                         </child>
                       </object>

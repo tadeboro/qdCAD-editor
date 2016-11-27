@@ -44,6 +44,7 @@ class Cell(object):
         self.value = value
         if type == Cell.Type.electrode:
             self.id = Cell.counter
+            self.clock = Cell.Clock.undefined
             Cell.counter += 1
 
     @property
@@ -317,9 +318,6 @@ class App(object):
     def on_relax(self, widget):
         self._change_clock(widget, Cell.Clock.relax)
 
-    def on_undefined(self, widget):
-        self._change_clock(widget, Cell.Clock.undefined)
-
     # Value changers
     def on_value_n(self, widget):
         self._change_value(widget, Cell.Value.n)
@@ -389,7 +387,7 @@ class App(object):
             Cell.Value.d: math.pi / 2,
         }
         clock_lut = {
-            Cell.Clock.undefined: (0.6784, 0.4980, 0.6588),
+            Cell.Clock.undefined: (0.9373, 0.1608, 0.1608),
             Cell.Clock.switch:    (0.9882, 0.9137, 0.3098),
             Cell.Clock.hold:      (0.4471, 0.6235, 0.8118),
             Cell.Clock.release:   (0.9882, 0.6863, 0.2431),
@@ -397,9 +395,9 @@ class App(object):
         }
         type_lut = {
             Cell.Type.internal:  (0.9333, 0.9333, 0.9255),
-            Cell.Type.driver:    (0.3333, 0.3333, 0.3333),
+            Cell.Type.driver:    (0.9373, 0.1608, 0.1608),
             Cell.Type.electrode: (0.9373, 0.1608, 0.1608),
-            Cell.Type.output:    (0.4588, 0.3137, 0.4824),
+            Cell.Type.output:    (0.0000, 0.0000, 0.0000),
         }
 
         x, y = self._from_cell_coords(cell.x, cell.y)
@@ -424,12 +422,14 @@ class App(object):
             cr.show_text("{}".format(cell.id))
 
         cr.set_source_rgb(0, 0, 0)
-        cr.new_sub_path()
         if cell.value == Cell.Value.n:
+            cr.new_sub_path()
             cr.arc(0, 0, 3, 0, 2 * math.pi)
         else:
             cr.rotate(value_lut[cell.value])
+            cr.new_sub_path()
             cr.arc( 10, 0, 5, 0, 2 * math.pi)
+            cr.new_sub_path()
             cr.arc(-10, 0, 5, 0, 2 * math.pi)
         cr.fill()
 
