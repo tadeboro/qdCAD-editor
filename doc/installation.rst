@@ -27,4 +27,15 @@ is needed to run the editor: python interpreter, GTK+ libraries, introspection
 files and python bindings. Simply download the package, unzip it and run
 ``qdcad-edit.bat``.
 
-.. _download site: http://x.k00.fr/1xqk6
+.. note::
+
+   When starting the application, an error might occur, saying that
+   ``MSVCR100.dll`` is missing. You can fix that error by installing
+   `Microsoft Visual C++ 2010 Redistributable Package`_ and things should work
+   as expected from then on.
+
+
+.. _download site:
+     http://x.k00.fr/1xqk6
+.. _Microsoft Visual C++ 2010 Redistributable Package:
+     https://www.microsoft.com/en-us/download/details.aspx?id=14632
